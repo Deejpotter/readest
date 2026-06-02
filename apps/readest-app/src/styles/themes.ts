@@ -205,6 +205,14 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#f6e1d7', bg: '#3c2b25', primary: '#ff9c94' }),
     },
   },
+  {
+    name: 'deejpotter',
+    label: _('Deej Potter'),
+    colors: {
+      light: generateLightPalette({ fg: '#111827', bg: '#f9fafb', primary: '#1E9952' }),
+      dark: generateDarkPalette({ fg: '#f9fafb', bg: '#030712', primary: '#1E9952' }),
+    },
+  },
 ] as Theme[];
 
 const generateCustomThemeVariables = (palette: Palette, fallbackIncluded = false): string => {

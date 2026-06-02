@@ -20,7 +20,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Nunito', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Fredoka', 'Nunito', 'sans-serif'],
       },
       colors: {
         background: 'var(--background)',

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: readest
+    env: node
+    repo: https://github.com/Deejpotter/readest
+    rootDir: apps/readest-app
+    buildCommand: corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm run build
+    startCommand: corepack pnpm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_APP_PLATFORM
+        value: web
