@@ -54,3 +54,6 @@ result*
 .claude/worktrees
 .claude/settings.local.json
 
+# Utility scripts (often contain secrets)
+/upload-to-r2.js
+

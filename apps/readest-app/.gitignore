@@ -80,3 +80,6 @@ src-tauri/gen
 /blob-report/
 /playwright/.cache/
 
+# Ebooks - stored in Cloudflare R2 instead of git
+/public/ebooks/
+
