@@ -63,6 +63,7 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
           <button
             key={item.id}
             onClick={() => {
+              // biome-ignore lint/suspicious/noExplicitAny: <explanation>
               onNavChange(item.id as any);
               onShelfChange(undefined);
             }}

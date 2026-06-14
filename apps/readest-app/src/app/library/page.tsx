@@ -184,6 +184,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const [loading, setLoading] = useState(false);
   const [isAutoGrouping, setIsAutoGrouping] = useState(false);
   const currentShelf = searchParams?.get('shelf') || undefined;
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const currentNav = (searchParams?.get('nav') as any) || 'books';
 
   // Seed from the library store: if we already have books in memory (the

@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 describe('Font configuration', () => {
   it('should have Nunito as the primary sans font', async () => {
     // Load the tailwind config dynamically to verify font settings
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const mod = (await import('../../../tailwind.config.ts')) as any;
     const config = mod.default;
     const fontFamily = config?.theme?.extend?.fontFamily;
@@ -25,6 +26,7 @@ describe('Font configuration', () => {
   });
 
   it('should have Fredoka as the primary display font', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const mod = (await import('../../../tailwind.config.ts')) as any;
     const config = mod.default;
     const display = config?.theme?.extend?.fontFamily?.display;
@@ -34,6 +36,7 @@ describe('Font configuration', () => {
   });
 
   it('should include fallback fonts after Nunito', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const mod = (await import('../../../tailwind.config.ts')) as any;
     const config = mod.default;
     const sans = config?.theme?.extend?.fontFamily?.sans;
