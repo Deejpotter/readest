@@ -90,6 +90,7 @@ export interface Book {
   group?: string; // deprecated in favor of groupId and groupName
   groupId?: string;
   groupName?: string;
+  shelf?: string;
   tags?: string[];
   coverImageUrl?: string | null;
 

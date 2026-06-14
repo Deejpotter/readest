@@ -2,6 +2,7 @@ import type { Book, BookLookupIndex } from '@/types/book';
 import type { AppService, OsPlatform } from '@/types/system';
 import type { SystemSettings } from '@/types/settings';
 import { transferManager } from '@/services/transferManager';
+import { classifyBook } from '@/services/ai/classificationService';
 
 export interface IngestFileDeps {
   appService: AppService;
@@ -184,6 +185,18 @@ export async function ingestFile(
     if (!tags.includes(tag)) {
       book.tags = [...tags, tag];
       book.updatedAt = Date.now();
+    }
+  }
+
+  // Auto-group with AI if enabled and no shelf is set
+  if (!book.shelf && settings.aiSettings?.enabled) {
+    try {
+      // Don't await here to avoid blocking ingestion, but we want the book to be updated.
+      // Actually, it's better to await if we want the initial save to have the shelf.
+      book.shelf = await classifyBook(book, settings.aiSettings);
+      book.updatedAt = Date.now();
+    } catch (error) {
+      console.error('Failed to auto-classify book during ingestion:', error);
     }
   }
 

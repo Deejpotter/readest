@@ -169,6 +169,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   );
   const sortBy2 = resolveEffectiveSecondarySort(sortBy2Raw, groupBy);
   const coverFit = searchParams?.get('cover') || settings.libraryCoverFit;
+  const currentShelf = searchParams?.get('shelf') || undefined;
 
   const [loading, setLoading] = useState(false);
   const [showSelectModeActions, setShowSelectModeActions] = useState(false);
@@ -219,9 +220,11 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   );
 
   const filteredBooks = useMemo(() => {
-    const bookFilter = createBookFilter(queryTerm);
-    return queryTerm ? libraryBooks.filter((book) => bookFilter(book)) : libraryBooks;
-  }, [libraryBooks, queryTerm]);
+    const bookFilter = createBookFilter(queryTerm, currentShelf);
+    return queryTerm || currentShelf
+      ? libraryBooks.filter((book) => bookFilter(book))
+      : libraryBooks;
+  }, [libraryBooks, queryTerm, currentShelf]);
 
   const currentBookshelfItems = useMemo(() => {
     if (groupBy === LibraryGroupByType.Group) {

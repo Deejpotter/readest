@@ -98,6 +98,8 @@ import DropIndicator from '@/components/DropIndicator';
 import SettingsDialog from '@/components/settings/SettingsDialog';
 import ModalPortal from '@/components/ModalPortal';
 import TransferQueuePanel from './components/TransferQueuePanel';
+import { LibrarySidebar } from './components/LibrarySidebar';
+import { batchClassifyBooks } from '@/services/ai/classificationService';
 
 /**
  * Key used to persist the last directory the user imported books from.
@@ -180,6 +182,10 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   );
   const [showImportFromUrl, setShowImportFromUrl] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isAutoGrouping, setIsAutoGrouping] = useState(false);
+  const currentShelf = searchParams?.get('shelf') || undefined;
+  const currentNav = (searchParams?.get('nav') as any) || 'books';
+
   // Seed from the library store: if we already have books in memory (the
   // common reader → library return path), treat the page as loaded
   // immediately. This prevents `showBookshelf` from briefly being false on
@@ -1323,6 +1329,53 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     handleLibraryNavigation(group);
   };
 
+  const handleShelfChange = (shelf: string | undefined) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    if (shelf) {
+      params.set('shelf', shelf);
+    } else {
+      params.delete('shelf');
+    }
+    navigateToLibrary(router, params.toString());
+  };
+
+  const handleNavChange = (nav: string) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('nav', nav);
+    params.delete('shelf');
+    params.delete('group');
+
+    if (nav === 'series') {
+      params.set('groupBy', LibraryGroupByType.Series);
+    } else {
+      params.set('groupBy', settings.libraryGroupBy || LibraryGroupByType.None);
+    }
+
+    navigateToLibrary(router, params.toString());
+  };
+
+  const handleAutoGroup = async () => {
+    if (isAutoGrouping) return;
+    setIsAutoGrouping(true);
+    try {
+      const updatedBooks = await batchClassifyBooks(libraryBooks, settings.aiSettings);
+      setLibrary(updatedBooks);
+      appService?.saveLibraryBooks(updatedBooks);
+      eventDispatcher.dispatch('toast', {
+        message: _('Successfully auto-grouped books with AI'),
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Auto-grouping failed:', error);
+      eventDispatcher.dispatch('toast', {
+        message: _('Failed to auto-group books'),
+        type: 'error',
+      });
+    } finally {
+      setIsAutoGrouping(false);
+    }
+  };
+
   if (!appService || !insets || checkOpenWithBooks || checkLastOpenBooks) {
     return <div className={clsx('full-height', !appService?.isLinuxApp && 'bg-base-200')} />;
   }
@@ -1334,207 +1387,221 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
       ref={pageRef}
       aria-label={_('Your Library')}
       className={clsx(
-        'library-page text-base-content full-height flex select-none flex-col overflow-hidden',
+        'library-page text-base-content full-height flex select-none flex-row overflow-hidden',
         viewSettings?.isEink ? 'bg-base-100' : 'bg-base-200',
         appService?.hasRoundedWindow && isRoundedWindow && 'window-border rounded-window',
       )}
     >
-      <div
-        className='relative top-0 z-40 w-full'
-        role='banner'
-        tabIndex={-1}
-        aria-label={_('Library Header')}
-      >
-        <LibraryHeader
-          isSelectMode={isSelectMode}
-          isSelectAll={isSelectAll}
-          onPullLibrary={pullLibrary}
-          onImportBooksFromFiles={handleImportBooksFromFiles}
-          onImportBooksFromDirectory={
-            appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
-          }
-          onImportBookFromUrl={isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined}
-          onOpenCatalogManager={handleShowOPDSDialog}
-          onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={handleDeselectAll}
-        />
-        <progress
-          aria-label={_('Library Sync Progress')}
-          aria-hidden={isSyncing ? 'false' : 'true'}
-          className={clsx(
-            'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
-            isSyncing ? 'opacity-100' : 'opacity-0',
-          )}
-          value={syncProgress * 100}
-          max='100'
+      <div className='hidden lg:block'>
+        <LibrarySidebar
+          currentNav={currentNav}
+          currentShelf={currentShelf}
+          onNavChange={handleNavChange}
+          onShelfChange={handleShelfChange}
+          onAutoGroup={handleAutoGroup}
+          isAutoGrouping={isAutoGrouping}
         />
       </div>
-      {(loading || isSyncing) && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center'>
-          <Spinner loading />
-        </div>
-      )}
-      {currentGroupPath && (
+      <div className='flex min-w-0 flex-1 flex-col overflow-hidden'>
         <div
-          className={`transition-all duration-300 ease-in-out ${
-            currentGroupPath ? 'opacity-100' : 'max-h-0 opacity-0'
-          }`}
+          className='relative top-0 z-40 w-full'
+          role='banner'
+          tabIndex={-1}
+          aria-label={_('Library Header')}
         >
-          <div className='flex flex-wrap items-center gap-y-1 px-4 text-base'>
-            <button
-              onClick={() => handleNavigateToPath(undefined)}
-              className='hover:bg-base-300 text-base-content/85 rounded px-2 py-1'
-            >
-              {_('All')}
-            </button>
-            {getBreadcrumbs(currentGroupPath).map((crumb, index, array) => {
-              const isLast = index === array.length - 1;
-              return (
-                <React.Fragment key={index}>
-                  <MdChevronRight size={iconSize} className='text-neutral-content' />
-                  {isLast ? (
-                    <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
-                  ) : (
-                    <button
-                      onClick={() => handleNavigateToPath(crumb.path)}
-                      className='hover:bg-base-300 text-base-content/85 truncate rounded px-2 py-1'
-                    >
-                      {crumb.name}
-                    </button>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
+          <LibraryHeader
+            isSelectMode={isSelectMode}
+            isSelectAll={isSelectAll}
+            onPullLibrary={pullLibrary}
+            onImportBooksFromFiles={handleImportBooksFromFiles}
+            onImportBooksFromDirectory={
+              appService?.canReadExternalDir ? handleImportBooksFromDirectory : undefined
+            }
+            onImportBookFromUrl={
+              isTauriAppPlatform() ? () => setShowImportFromUrl(true) : undefined
+            }
+            onOpenCatalogManager={handleShowOPDSDialog}
+            onToggleSelectMode={() => handleSetSelectMode(!isSelectMode)}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+          />
+          <progress
+            aria-label={_('Library Sync Progress')}
+            aria-hidden={isSyncing ? 'false' : 'true'}
+            className={clsx(
+              'progress progress-success absolute bottom-0 left-0 right-0 h-1 translate-y-[2px] transition-opacity duration-200 sm:translate-y-[4px]',
+              isSyncing ? 'opacity-100' : 'opacity-0',
+            )}
+            value={syncProgress * 100}
+            max='100'
+          />
         </div>
-      )}
-      {currentSeriesAuthorGroup && (
-        <GroupHeader
-          groupBy={currentSeriesAuthorGroup.groupBy}
-          groupName={currentSeriesAuthorGroup.groupName}
-        />
-      )}
-      {showBookshelf &&
-        (libraryBooks.some((book) => !book.deletedAt) ? (
-          <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
-            <div
-              ref={containerRef}
-              className={clsx(
-                'scroll-container drop-zone flex min-h-0 flex-grow flex-col',
-                isDragging && 'drag-over',
-              )}
-              style={{
-                paddingRight: `${insets.right}px`,
-                paddingLeft: `${insets.left}px`,
-              }}
-            >
-              <DropIndicator />
-              <Bookshelf
-                libraryBooks={libraryBooks}
-                isSelectMode={isSelectMode}
-                isSelectAll={isSelectAll}
-                isSelectNone={isSelectNone}
-                onScrollerRef={handleScrollerRef}
-                handleImportBooks={handleImportBooksFromFiles}
-                handleBookUpload={handleBookUpload}
-                handleBookDownload={handleBookDownload}
-                handleBookDelete={handleBookDelete('both')}
-                handleSetSelectMode={handleSetSelectMode}
-                handleShowDetailsBook={handleShowDetailsBook}
-                handleLibraryNavigation={handleLibraryNavigation}
-                booksTransferProgress={booksTransferProgress}
-                handlePushLibrary={pushLibrary}
-              />
+        {(loading || isSyncing) && (
+          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+            <Spinner loading />
+          </div>
+        )}
+        {currentGroupPath && (
+          <div
+            className={`transition-all duration-300 ease-in-out ${
+              currentGroupPath ? 'opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className='flex flex-wrap items-center gap-y-1 px-4 text-base'>
+              <button
+                onClick={() => handleNavigateToPath(undefined)}
+                className='hover:bg-base-300 text-base-content/85 rounded px-2 py-1'
+              >
+                {_('All')}
+              </button>
+              {getBreadcrumbs(currentGroupPath).map((crumb, index, array) => {
+                const isLast = index === array.length - 1;
+                return (
+                  <React.Fragment key={index}>
+                    <MdChevronRight size={iconSize} className='text-neutral-content' />
+                    {isLast ? (
+                      <span className='truncate rounded px-2 py-1'>{crumb.name}</span>
+                    ) : (
+                      <button
+                        onClick={() => handleNavigateToPath(crumb.path)}
+                        className='hover:bg-base-300 text-base-content/85 truncate rounded px-2 py-1'
+                      >
+                        {crumb.name}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
-        ) : (
-          <div className='hero drop-zone h-screen items-center justify-center'>
-            <DropIndicator />
-            <LibraryEmptyState onImport={handleImportBooksFromFiles} />
-          </div>
-        ))}
-      {showDetailsBook && (
-        <BookDetailModal
-          isOpen={!!showDetailsBook}
-          book={showDetailsBook}
-          onClose={() => setShowDetailsBook(null)}
-          handleBookUpload={handleBookUpload}
-          handleBookDownload={handleBookDownload}
-          handleBookDelete={handleBookDelete('both')}
-          handleBookDeleteCloudBackup={handleBookDelete('cloud')}
-          handleBookDeleteLocalCopy={handleBookDelete('local')}
-          handleBookMetadataUpdate={handleUpdateMetadata}
-        />
-      )}
-      {isTransferQueueOpen && (
-        <ModalPortal>
-          <TransferQueuePanel />
-        </ModalPortal>
-      )}
-      <AboutWindow />
-      <KeyboardShortcutsHelp />
-      <UpdaterWindow />
-      <MigrateDataWindow />
-      <BackupWindow onPullLibrary={pullLibrary} />
-      <CacheManagerWindow />
-      {isSettingsDialogOpen && <SettingsDialog bookKey={''} />}
-      {showCatalogManager && <CatalogDialog onClose={handleDismissOPDSDialog} />}
-      {failedImportsModal && (
-        <FailedImportsDialog
-          failedImports={failedImportsModal}
-          onClose={() => setFailedImportsModal(null)}
-        />
-      )}
-      {importFromFolderState && (
-        <ImportFromFolderDialog
-          initialDirectory={importFromFolderState.initialDirectory}
-          initialFolderMode={importFromFolderState.initialFolderMode}
-          initialSelectedGroupIds={importFromFolderState.initialSelectedGroupIds}
-          initialMinSizeKB={importFromFolderState.initialMinSizeKB}
-          initialReadInPlace={importFromFolderState.initialReadInPlace}
-          isRegisteredExternalRoot={isRegisteredExternalRoot}
-          onPickDirectory={pickImportDirectory}
-          onCancel={() => setImportFromFolderState(null)}
-          onConfirm={(result) => {
-            setImportFromFolderState(null);
-            // Remember the folder + filters for next time. Done here
-            // (rather than inside pickImportDirectory) so we only
-            // persist values the user actually committed to, not
-            // ones they cancelled out of.
-            if (typeof window !== 'undefined') {
-              if (result.directory) {
-                window.localStorage.setItem(LAST_IMPORT_FOLDER_KEY, result.directory);
-              }
-              window.localStorage.setItem(
-                LAST_IMPORT_FOLDER_MODE_KEY,
-                result.flatten ? 'flatten' : 'keep',
-              );
-              if (result.selectedGroupIds.length > 0) {
+        )}
+        {currentSeriesAuthorGroup && (
+          <GroupHeader
+            groupBy={currentSeriesAuthorGroup.groupBy}
+            groupName={currentSeriesAuthorGroup.groupName}
+          />
+        )}
+        {showBookshelf &&
+          (libraryBooks.some((book) => !book.deletedAt) ? (
+            <div aria-label={_('Your Bookshelf')} className='flex min-h-0 flex-grow flex-col'>
+              <div
+                ref={containerRef}
+                className={clsx(
+                  'scroll-container drop-zone flex min-h-0 flex-grow flex-col',
+                  isDragging && 'drag-over',
+                )}
+                style={{
+                  paddingRight: `${insets.right}px`,
+                  paddingLeft: `${insets.left}px`,
+                }}
+              >
+                <DropIndicator />
+                <Bookshelf
+                  libraryBooks={libraryBooks}
+                  isSelectMode={isSelectMode}
+                  isSelectAll={isSelectAll}
+                  isSelectNone={isSelectNone}
+                  onScrollerRef={handleScrollerRef}
+                  handleImportBooks={handleImportBooksFromFiles}
+                  handleBookUpload={handleBookUpload}
+                  handleBookDownload={handleBookDownload}
+                  handleBookDelete={handleBookDelete('both')}
+                  handleSetSelectMode={handleSetSelectMode}
+                  handleShowDetailsBook={handleShowDetailsBook}
+                  handleLibraryNavigation={handleLibraryNavigation}
+                  booksTransferProgress={booksTransferProgress}
+                  handlePushLibrary={pushLibrary}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className='hero drop-zone h-screen items-center justify-center'>
+              <DropIndicator />
+              <LibraryEmptyState onImport={handleImportBooksFromFiles} />
+            </div>
+          ))}
+        {showDetailsBook && (
+          <BookDetailModal
+            isOpen={!!showDetailsBook}
+            book={showDetailsBook}
+            onClose={() => setShowDetailsBook(null)}
+            handleBookUpload={handleBookUpload}
+            handleBookDownload={handleBookDownload}
+            handleBookDelete={handleBookDelete('both')}
+            handleBookDeleteCloudBackup={handleBookDelete('cloud')}
+            handleBookDeleteLocalCopy={handleBookDelete('local')}
+            handleBookMetadataUpdate={handleUpdateMetadata}
+          />
+        )}
+        {isTransferQueueOpen && (
+          <ModalPortal>
+            <TransferQueuePanel />
+          </ModalPortal>
+        )}
+        <AboutWindow />
+        <KeyboardShortcutsHelp />
+        <UpdaterWindow />
+        <MigrateDataWindow />
+        <BackupWindow onPullLibrary={pullLibrary} />
+        <CacheManagerWindow />
+        {isSettingsDialogOpen && <SettingsDialog bookKey={''} />}
+        {showCatalogManager && <CatalogDialog onClose={handleDismissOPDSDialog} />}
+        {failedImportsModal && (
+          <FailedImportsDialog
+            failedImports={failedImportsModal}
+            onClose={() => setFailedImportsModal(null)}
+          />
+        )}
+        {importFromFolderState && (
+          <ImportFromFolderDialog
+            initialDirectory={importFromFolderState.initialDirectory}
+            initialFolderMode={importFromFolderState.initialFolderMode}
+            initialSelectedGroupIds={importFromFolderState.initialSelectedGroupIds}
+            initialMinSizeKB={importFromFolderState.initialMinSizeKB}
+            initialReadInPlace={importFromFolderState.initialReadInPlace}
+            isRegisteredExternalRoot={isRegisteredExternalRoot}
+            onPickDirectory={pickImportDirectory}
+            onCancel={() => setImportFromFolderState(null)}
+            onConfirm={(result) => {
+              setImportFromFolderState(null);
+              // Remember the folder + filters for next time. Done here
+              // (rather than inside pickImportDirectory) so we only
+              // persist values the user actually committed to, not
+              // ones they cancelled out of.
+              if (typeof window !== 'undefined') {
+                if (result.directory) {
+                  window.localStorage.setItem(LAST_IMPORT_FOLDER_KEY, result.directory);
+                }
                 window.localStorage.setItem(
-                  LAST_IMPORT_FOLDER_FORMATS_KEY,
-                  result.selectedGroupIds.join(','),
+                  LAST_IMPORT_FOLDER_MODE_KEY,
+                  result.flatten ? 'flatten' : 'keep',
+                );
+                if (result.selectedGroupIds.length > 0) {
+                  window.localStorage.setItem(
+                    LAST_IMPORT_FOLDER_FORMATS_KEY,
+                    result.selectedGroupIds.join(','),
+                  );
+                }
+                window.localStorage.setItem(
+                  LAST_IMPORT_FOLDER_MIN_SIZE_KEY,
+                  String(result.minSizeKB),
+                );
+                window.localStorage.setItem(
+                  LAST_IMPORT_FOLDER_READ_IN_PLACE_KEY,
+                  result.readInPlace ? '1' : '0',
                 );
               }
-              window.localStorage.setItem(
-                LAST_IMPORT_FOLDER_MIN_SIZE_KEY,
-                String(result.minSizeKB),
-              );
-              window.localStorage.setItem(
-                LAST_IMPORT_FOLDER_READ_IN_PLACE_KEY,
-                result.readInPlace ? '1' : '0',
-              );
-            }
-            void runFolderImport(result);
-          }}
+              void runFolderImport(result);
+            }}
+          />
+        )}
+        <ImportFromUrlDialog
+          isOpen={showImportFromUrl}
+          onClose={() => setShowImportFromUrl(false)}
+          onSubmit={handleImportBookFromUrl}
         />
-      )}
-      <ImportFromUrlDialog
-        isOpen={showImportFromUrl}
-        onClose={() => setShowImportFromUrl(false)}
-        onSubmit={handleImportBookFromUrl}
-      />
-      <Toast />
+        <Toast />
+      </div>
     </div>
   );
 };

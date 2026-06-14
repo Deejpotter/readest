@@ -148,9 +148,12 @@ export const expandBookshelfSelection = (ids: string[], items: (Book | BooksGrou
   return [...hashes];
 };
 
-export const createBookFilter = (queryTerm: string | null) => (item: Book) => {
-  if (!queryTerm) return true;
+export const createBookFilter = (queryTerm: string | null, shelf?: string) => (item: Book) => {
   if (item.deletedAt) return false;
+
+  if (shelf && item.shelf !== shelf) return false;
+
+  if (!queryTerm) return true;
   let searchTerm: RegExp;
   try {
     searchTerm = new RegExp(queryTerm, 'i');

@@ -109,7 +109,7 @@ const getPathResolver = ({ customRootDir }: { customRootDir?: string } = {}) => 
           'Dictionaries',
         ];
         const leafDir = dataDirs.includes(base) ? '' : base;
-        return leafDir ? `${customRootDir}/${leafDir}` : customRootDir!;
+        return leafDir ? nodePath.join(customRootDir!, leafDir) : customRootDir!;
       }
     : undefined;
 
@@ -206,7 +206,7 @@ const getPathResolver = ({ customRootDir }: { customRootDir?: string } = {}) => 
 async function toAbsolute(resolved: ResolvedPath): Promise<string> {
   if (nodePath.isAbsolute(resolved.fp)) return resolved.fp;
   const prefix = (await resolved.basePrefix()).replace(/\/+$/, '');
-  return resolved.fp ? nodePath.join(prefix, resolved.fp) : prefix;
+  return nodePath.resolve(resolved.fp ? nodePath.join(prefix, resolved.fp) : prefix);
 }
 
 export const nodeFileSystem: FileSystem = {
