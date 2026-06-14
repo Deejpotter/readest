@@ -11,7 +11,6 @@ import {
   PiCaretRight,
   PiSparkle,
 } from 'react-icons/pi';
-import { Book } from '@/types/book';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLibraryStore } from '@/store/libraryStore';
 

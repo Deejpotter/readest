@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { Book } from '@/types/book';
 import { AISettings } from '@/services/ai/types';
-import { getProvider } from '@/services/ai';
+import { getAIProvider } from '@/services/ai/providers';
 
 export const DEFAULT_SHELVES = [
   'Art',
@@ -36,7 +36,7 @@ export async function classifyBook(
     return 'Uncategorized';
   }
 
-  const provider = getProvider(settings.provider, settings);
+  const provider = getAIProvider(settings);
   const model = provider.getModel();
 
   const metadata = book.metadata;
@@ -67,7 +67,6 @@ Shelf:`;
     const { text } = await generateText({
       model,
       prompt,
-      maxTokens: 10,
       temperature: 0.1,
     });
 
@@ -98,8 +97,12 @@ export async function batchClassifyBooks(
   for (const book of booksToClassify) {
     const shelf = await classifyBook(book, settings, finalShelves);
     const idx = updatedBooks.findIndex((b) => b.hash === book.hash);
-    if (idx !== -1) {
-      updatedBooks[idx] = { ...updatedBooks[idx], shelf, updatedAt: Date.now() };
+    if (idx !== -1 && updatedBooks[idx]) {
+      updatedBooks[idx] = {
+        ...updatedBooks[idx],
+        shelf,
+        updatedAt: Date.now(),
+      } as Book;
     }
     count++;
     onProgress?.(count, booksToClassify.length);
