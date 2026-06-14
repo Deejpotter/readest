@@ -100,6 +100,15 @@ const AIPanel: React.FC = () => {
   const [openrouterFetchingModels, setOpenrouterFetchingModels] = useState(false);
   const [openrouterModelsError, setOpenrouterModelsError] = useState('');
 
+  // ---- OpenCode Zen state ----
+  const [opencodeZenKey, setOpencodeZenKey] = useState(aiSettings.opencodeZenApiKey ?? '');
+  const [opencodeZenModel, setOpencodeZenModel] = useState(
+    aiSettings.opencodeZenModel ?? DEFAULT_AI_SETTINGS.opencodeZenModel ?? '',
+  );
+  const [opencodeZenEmbeddingModel, setOpencodeZenEmbeddingModel] = useState(
+    aiSettings.opencodeZenEmbeddingModel ?? '',
+  );
+
   const savedCustomModel = aiSettings.aiGatewayCustomModel ?? '';
   const savedModel = aiSettings.aiGatewayModel ?? DEFAULT_AI_SETTINGS.aiGatewayModel ?? '';
   const isCustomModelSaved = savedCustomModel.length > 0;
@@ -288,6 +297,31 @@ const AIPanel: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openrouterEmbeddingModel]);
 
+  // ---- OpenCode Zen save effects ----
+  useEffect(() => {
+    if (!isMounted.current) return;
+    if (opencodeZenKey !== (aiSettings.opencodeZenApiKey ?? '')) {
+      saveAiSetting('opencodeZenApiKey', opencodeZenKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opencodeZenKey]);
+
+  useEffect(() => {
+    if (!isMounted.current) return;
+    if (opencodeZenModel !== (aiSettings.opencodeZenModel ?? '')) {
+      saveAiSetting('opencodeZenModel', opencodeZenModel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opencodeZenModel]);
+
+  useEffect(() => {
+    if (!isMounted.current) return;
+    if (opencodeZenEmbeddingModel !== (aiSettings.opencodeZenEmbeddingModel ?? '')) {
+      saveAiSetting('opencodeZenEmbeddingModel', opencodeZenEmbeddingModel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opencodeZenEmbeddingModel]);
+
   // Get the effective model ID to use (either selected or custom)
   const getEffectiveModelId = useCallback(() => {
     if (selectedModel === CUSTOM_MODEL_VALUE && customModelStatus === 'valid') {
@@ -382,6 +416,9 @@ const AIPanel: React.FC = () => {
         openrouterBaseUrl: openrouterUrl,
         openrouterModel,
         openrouterEmbeddingModel,
+        opencodeZenApiKey: opencodeZenKey,
+        opencodeZenModel,
+        opencodeZenEmbeddingModel,
       };
       const aiProvider = getAIProvider(testSettings);
       const isHealthy = await aiProvider.healthCheck();
@@ -441,6 +478,16 @@ const AIPanel: React.FC = () => {
             className='radio'
             checked={provider === 'openrouter'}
             onChange={() => setProvider('openrouter')}
+            disabled={!enabled}
+          />
+        </SettingsRow>
+        <SettingsRow label={_('OpenCode Zen (MiMo)')} asLabel>
+          <input
+            type='radio'
+            name='ai-provider'
+            className='radio'
+            checked={provider === 'opencode-zen'}
+            onChange={() => setProvider('opencode-zen')}
             disabled={!enabled}
           />
         </SettingsRow>
@@ -733,6 +780,69 @@ const AIPanel: React.FC = () => {
                 disabled={!enabled}
               />
             )}
+            <span className='text-base-content/60 text-xs'>
+              {_(
+                'Optional. Leave blank if your endpoint does not support embeddings — chat will still work but RAG features will be unavailable.',
+              )}
+            </span>
+          </div>
+        </BoxedList>
+      )}
+
+      {provider === 'opencode-zen' && (
+        <BoxedList
+          title={_('OpenCode Zen Configuration')}
+          description={_(
+            'Curated models from the OpenCode team. Free MiMo V2.5 model available with 200K context window.',
+          )}
+          className={disabledSection}
+        >
+          <div className='flex flex-col gap-2 pe-4 py-3'>
+            <div className='flex w-full items-center justify-between'>
+              <SettingLabel>{_('API Key')}</SettingLabel>
+              <a
+                href='https://open-code.ai'
+                target='_blank'
+                rel='noopener noreferrer'
+                className={clsx('link text-xs', !enabled && 'pointer-events-none')}
+              >
+                {_('Get Key')}
+              </a>
+            </div>
+            <input
+              type='password'
+              className='input input-bordered input-sm w-full'
+              value={opencodeZenKey}
+              onChange={(e) => setOpencodeZenKey(e.target.value)}
+              placeholder='Enter your OpenCode Zen API key'
+              disabled={!enabled}
+              autoComplete='off'
+            />
+          </div>
+          <div className='flex flex-col gap-2 pe-4 py-3'>
+            <SettingLabel>{_('LLM Model')}</SettingLabel>
+            <input
+              type='text'
+              className='input input-bordered input-sm w-full'
+              value={opencodeZenModel}
+              onChange={(e) => setOpencodeZenModel(e.target.value)}
+              placeholder='mimo-v2.5-free'
+              disabled={!enabled}
+            />
+            <span className='text-base-content/60 text-xs'>
+              {_('Default: mimo-v2.5-free (free, 200K context)')}
+            </span>
+          </div>
+          <div className='flex flex-col gap-2 pe-4 py-3'>
+            <SettingLabel>{_('Embedding Model')}</SettingLabel>
+            <input
+              type='text'
+              className='input input-bordered input-sm w-full'
+              value={opencodeZenEmbeddingModel}
+              onChange={(e) => setOpencodeZenEmbeddingModel(e.target.value)}
+              placeholder='openai/text-embedding-3-small'
+              disabled={!enabled}
+            />
             <span className='text-base-content/60 text-xs'>
               {_(
                 'Optional. Leave blank if your endpoint does not support embeddings — chat will still work but RAG features will be unavailable.',

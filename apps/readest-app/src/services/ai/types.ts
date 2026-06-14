@@ -1,6 +1,6 @@
 import type { LanguageModel, EmbeddingModel } from 'ai';
 
-export type AIProviderName = 'ollama' | 'ai-gateway' | 'openrouter';
+export type AIProviderName = 'ollama' | 'ai-gateway' | 'openrouter' | 'opencode-zen';
 
 export interface AIProvider {
   id: AIProviderName;
@@ -33,6 +33,12 @@ export interface AISettings {
   openrouterBaseUrl?: string;
   openrouterModel?: string;
   openrouterEmbeddingModel?: string;
+
+  // OpenCode Zen — curated models from the OpenCode team.
+  opencodeZenApiKey?: string;
+  opencodeZenBaseUrl?: string;
+  opencodeZenModel?: string;
+  opencodeZenEmbeddingModel?: string;
 
   spoilerProtection: boolean;
   maxContextChunks: number;

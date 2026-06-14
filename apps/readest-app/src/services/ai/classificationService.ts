@@ -31,12 +31,19 @@ export async function classifyBook(
   book: Book,
   settings: AISettings,
   existingShelves: string[] = DEFAULT_SHELVES,
-): Promise<string> {
+): Promise<string | undefined> {
   if (!settings.enabled) {
-    return 'Uncategorized';
+    return undefined;
   }
 
-  const provider = getAIProvider(settings);
+  let provider;
+  try {
+    provider = getAIProvider(settings);
+  } catch (error) {
+    console.error('Failed to get AI provider:', error);
+    return undefined;
+  }
+
   const model = provider.getModel();
 
   const metadata = book.metadata;
@@ -70,43 +77,54 @@ Shelf:`;
       temperature: 0.1,
     });
 
-    return text.trim();
+    const shelf = text.trim();
+    if (!shelf || shelf.toLowerCase() === 'uncategorized') {
+      return undefined;
+    }
+    return shelf;
   } catch (error) {
     console.error('Failed to classify book:', error);
-    return 'Uncategorized';
+    return undefined;
   }
 }
 
 /**
- * Batch classifies books that don't have a shelf.
+ * Batch classifies books that don't have a shelf or have 'Uncategorized'.
  */
 export async function batchClassifyBooks(
   books: Book[],
   settings: AISettings,
   onProgress?: (current: number, total: number) => void,
-): Promise<Book[]> {
-  const booksToClassify = books.filter((b) => !b.shelf && !b.deletedAt);
-  if (booksToClassify.length === 0) return books;
+): Promise<{ books: Book[]; classifiedCount: number; shelfCount: number }> {
+  const booksToClassify = books.filter(
+    (b) => (!b.shelf || b.shelf === 'Uncategorized') && !b.deletedAt,
+  );
+  if (booksToClassify.length === 0) return { books, classifiedCount: 0, shelfCount: 0 };
 
   const shelves = Array.from(new Set(books.map((b) => b.shelf).filter(Boolean) as string[]));
   const finalShelves = shelves.length > 0 ? shelves : DEFAULT_SHELVES;
 
   const updatedBooks = [...books];
   let count = 0;
+  let classifiedCount = 0;
 
   for (const book of booksToClassify) {
     const shelf = await classifyBook(book, settings, finalShelves);
     const idx = updatedBooks.findIndex((b) => b.hash === book.hash);
-    if (idx !== -1 && updatedBooks[idx]) {
+    if (idx !== -1 && updatedBooks[idx] && shelf) {
       updatedBooks[idx] = {
         ...updatedBooks[idx],
         shelf,
         updatedAt: Date.now(),
       } as Book;
+      classifiedCount++;
     }
     count++;
     onProgress?.(count, booksToClassify.length);
   }
 
-  return updatedBooks;
+  const shelfCount = new Set(
+    updatedBooks.filter((b) => b.shelf && b.shelf !== 'Uncategorized').map((b) => b.shelf),
+  ).size;
+  return { books: updatedBooks, classifiedCount, shelfCount };
 }

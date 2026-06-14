@@ -120,6 +120,8 @@ function chatModelIdFor(settings: AISettings): string {
       );
     case 'openrouter':
       return settings.openrouterModel || 'openai/gpt-4o-mini';
+    case 'opencode-zen':
+      return settings.opencodeZenModel || 'mimo-v2.5-free';
   }
 }
 
@@ -173,5 +175,7 @@ function embeddingModelIdFor(settings: AISettings): string {
       return settings.aiGatewayEmbeddingModel || 'openai/text-embedding-3-small';
     case 'openrouter':
       return settings.openrouterEmbeddingModel || 'openai/text-embedding-3-small';
+    case 'opencode-zen':
+      return settings.opencodeZenEmbeddingModel || 'openai/text-embedding-3-small';
   }
 }

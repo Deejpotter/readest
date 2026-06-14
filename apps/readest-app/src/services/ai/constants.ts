@@ -34,6 +34,10 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
   openrouterModel: '',
   openrouterEmbeddingModel: '',
 
+  opencodeZenBaseUrl: 'https://opencode.ai/zen/v1',
+  opencodeZenModel: 'mimo-v2.5-free',
+  opencodeZenEmbeddingModel: 'openai/text-embedding-3-small',
+
   spoilerProtection: true,
   maxContextChunks: 10,
   indexingMode: 'on-demand',

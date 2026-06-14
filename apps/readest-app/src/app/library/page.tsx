@@ -184,8 +184,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
   const [loading, setLoading] = useState(false);
   const [isAutoGrouping, setIsAutoGrouping] = useState(false);
   const currentShelf = searchParams?.get('shelf') || undefined;
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  const currentNav = (searchParams?.get('nav') as any) || 'books';
+  const currentNav = (searchParams?.get('nav') as 'books' | 'series') || 'books';
 
   // Seed from the library store: if we already have books in memory (the
   // common reader → library return path), treat the page as loaded
@@ -576,6 +575,19 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
 
       // Reuse the library from the store when we return from the reader
       const library = hasCachedLibrary ? libraryBooks : await appService.loadLibraryBooks();
+
+      // One-time migration: clear 'Uncategorized' shelf values so books can be retried
+      let needsSave = false;
+      for (const book of library) {
+        if (book.shelf === 'Uncategorized') {
+          book.shelf = undefined;
+          needsSave = true;
+        }
+      }
+      if (needsSave) {
+        await appService.saveLibraryBooks(library);
+      }
+
       let opened = false;
       if (checkOpenWithBooks) {
         opened = await handleOpenWithBooks(appService, library);
@@ -1340,7 +1352,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
     navigateToLibrary(router, params.toString());
   };
 
-  const handleNavChange = (nav: string) => {
+  const handleNavChange = (nav: 'books' | 'series') => {
     const params = new URLSearchParams(searchParams?.toString());
     params.set('nav', nav);
     params.delete('shelf');
@@ -1357,13 +1369,29 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
 
   const handleAutoGroup = async () => {
     if (isAutoGrouping) return;
+    if (!settings.aiSettings.enabled) {
+      eventDispatcher.dispatch('toast', {
+        message: _(
+          'AI is not enabled. Please configure AI in Settings to use auto-classification.',
+        ),
+        type: 'warning',
+      });
+      return;
+    }
     setIsAutoGrouping(true);
     try {
-      const updatedBooks = await batchClassifyBooks(libraryBooks, settings.aiSettings);
+      const {
+        books: updatedBooks,
+        classifiedCount,
+        shelfCount,
+      } = await batchClassifyBooks(libraryBooks, settings.aiSettings);
       setLibrary(updatedBooks);
       appService?.saveLibraryBooks(updatedBooks);
       eventDispatcher.dispatch('toast', {
-        message: _('Successfully auto-grouped books with AI'),
+        message: _('Classified {{count}} books into {{shelves}} shelves', {
+          count: classifiedCount,
+          shelves: shelfCount,
+        }),
         type: 'success',
       });
     } catch (error) {

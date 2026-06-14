@@ -1,23 +1,14 @@
 import clsx from 'clsx';
 import * as React from 'react';
 import { useState, useMemo } from 'react';
-import {
-  PiBooks,
-  PiStack,
-  PiStar,
-  PiEyeSlash,
-  PiFolder,
-  PiCaretDown,
-  PiCaretRight,
-  PiSparkle,
-} from 'react-icons/pi';
+import { PiBooks, PiStack, PiFolder, PiCaretDown, PiCaretRight, PiSparkle } from 'react-icons/pi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLibraryStore } from '@/store/libraryStore';
 
 interface LibrarySidebarProps {
   currentShelf?: string;
-  currentNav: 'books' | 'series' | 'wishlist' | 'hidden';
-  onNavChange: (nav: 'books' | 'series' | 'wishlist' | 'hidden') => void;
+  currentNav: 'books' | 'series';
+  onNavChange: (nav: 'books' | 'series') => void;
   onShelfChange: (shelf: string | undefined) => void;
   onAutoGroup: () => void;
   isAutoGrouping?: boolean;
@@ -39,21 +30,26 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
 
   const shelves = useMemo(() => {
     const shelfMap: Record<string, number> = {};
+    let unclassifiedCount = 0;
     activeBooks.forEach((book) => {
       if (book.shelf) {
         shelfMap[book.shelf] = (shelfMap[book.shelf] || 0) + 1;
+      } else {
+        unclassifiedCount++;
       }
     });
-    return Object.entries(shelfMap)
+    const result = Object.entries(shelfMap)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
+    if (unclassifiedCount > 0) {
+      result.push({ name: 'Uncategorized', count: unclassifiedCount });
+    }
+    return result;
   }, [activeBooks]);
 
   const navItems = [
     { id: 'books', label: _('Books'), icon: PiBooks, count: activeBooks.length },
-    { id: 'series', label: _('Series'), icon: PiStack, count: 0 }, // TODO: Implement series count
-    { id: 'wishlist', label: _('Wishlist'), icon: PiStar, count: 0 }, // TODO: Implement wishlist
-    { id: 'hidden', label: _('Hidden'), icon: PiEyeSlash, count: 0 }, // TODO: Implement hidden
+    { id: 'series', label: _('Series'), icon: PiStack, count: 0 },
   ];
 
   return (
@@ -63,8 +59,7 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
           <button
             key={item.id}
             onClick={() => {
-              // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-              onNavChange(item.id as any);
+              onNavChange(item.id as 'books' | 'series');
               onShelfChange(undefined);
             }}
             className={clsx(

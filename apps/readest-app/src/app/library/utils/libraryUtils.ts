@@ -314,6 +314,10 @@ export const createBookGroups = (
     return createAuthorGroups(activeBooks);
   }
 
+  if (groupBy === LibraryGroupByType.Shelf) {
+    return createShelfGroups(activeBooks);
+  }
+
   // 'group' mode is handled separately by generateBookshelfItems
   return activeBooks;
 };
@@ -393,6 +397,39 @@ const createAuthorGroups = (books: Book[]): (Book | BooksGroup)[] => {
     displayName: authorName,
     books: authorBooks,
     updatedAt: Math.max(...authorBooks.map((b) => b.updatedAt)),
+  }));
+
+  return [...groups, ...ungroupedBooks];
+};
+
+/**
+ * Group books by shelf.
+ * Books without a shelf appear as individual items.
+ */
+const createShelfGroups = (books: Book[]): (Book | BooksGroup)[] => {
+  const shelfMap = new Map<string, Book[]>();
+  const ungroupedBooks: Book[] = [];
+
+  for (const book of books) {
+    const shelf = book.shelf?.trim();
+    if (shelf) {
+      const existing = shelfMap.get(shelf);
+      if (existing) {
+        existing.push(book);
+      } else {
+        shelfMap.set(shelf, [book]);
+      }
+    } else {
+      ungroupedBooks.push(book);
+    }
+  }
+
+  const groups: BooksGroup[] = Array.from(shelfMap.entries()).map(([shelfName, shelfBooks]) => ({
+    id: md5Fingerprint(`shelf:${shelfName}`),
+    name: shelfName,
+    displayName: shelfName,
+    books: shelfBooks,
+    updatedAt: Math.max(...shelfBooks.map((b) => b.updatedAt)),
   }));
 
   return [...groups, ...ungroupedBooks];

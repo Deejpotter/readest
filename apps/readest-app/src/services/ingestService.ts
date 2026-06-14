@@ -191,10 +191,11 @@ export async function ingestFile(
   // Auto-group with AI if enabled and no shelf is set
   if (!book.shelf && settings.aiSettings?.enabled) {
     try {
-      // Don't await here to avoid blocking ingestion, but we want the book to be updated.
-      // Actually, it's better to await if we want the initial save to have the shelf.
-      book.shelf = await classifyBook(book, settings.aiSettings);
-      book.updatedAt = Date.now();
+      const shelf = await classifyBook(book, settings.aiSettings);
+      if (shelf) {
+        book.shelf = shelf;
+        book.updatedAt = Date.now();
+      }
     } catch (error) {
       console.error('Failed to auto-classify book during ingestion:', error);
     }

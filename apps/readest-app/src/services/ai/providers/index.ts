@@ -1,9 +1,10 @@
 import { OllamaProvider } from './OllamaProvider';
 import { AIGatewayProvider } from './AIGatewayProvider';
 import { OpenRouterProvider } from './OpenRouterProvider';
+import { OpenCodeZenProvider } from './OpenCodeZenProvider';
 import type { AIProvider, AISettings } from '../types';
 
-export { OllamaProvider, AIGatewayProvider, OpenRouterProvider };
+export { OllamaProvider, AIGatewayProvider, OpenRouterProvider, OpenCodeZenProvider };
 
 export function getAIProvider(settings: AISettings): AIProvider {
   switch (settings.provider) {
@@ -19,6 +20,11 @@ export function getAIProvider(settings: AISettings): AIProvider {
         throw new Error('API key required for OpenRouter');
       }
       return new OpenRouterProvider(settings);
+    case 'opencode-zen':
+      if (!settings.opencodeZenApiKey) {
+        throw new Error('API key required for OpenCode Zen');
+      }
+      return new OpenCodeZenProvider(settings);
     default:
       throw new Error(`Unknown provider: ${settings.provider}`);
   }
