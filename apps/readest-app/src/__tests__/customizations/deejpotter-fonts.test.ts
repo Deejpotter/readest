@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 /**
  * Font customization tests for the deejpotter fork.
@@ -14,19 +14,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 describe('Font configuration', () => {
   it('should have Nunito as the primary sans font', async () => {
     // Load the tailwind config dynamically to verify font settings
-    const mod = await import('../../../tailwind.config.ts');
-    const config = mod.default || mod.config;
-    const fontFamily = config?.theme?.extend?.fontFamily || config?.theme?.fontFamily;
+    const mod = (await import('../../../tailwind.config.ts')) as any;
+    const config = mod.default;
+    const fontFamily = config?.theme?.extend?.fontFamily;
     // Try both potential locations
-    const sans = config?.theme?.extend?.fontFamily?.sans;
+    const sans = fontFamily?.sans;
     expect(sans).toBeDefined();
     expect(Array.isArray(sans)).toBe(true);
     expect(sans![0]).toBe('Nunito');
   });
 
   it('should have Fredoka as the primary display font', async () => {
-    const mod = await import('../../../tailwind.config.ts');
-    const config = mod.default || mod.config;
+    const mod = (await import('../../../tailwind.config.ts')) as any;
+    const config = mod.default;
     const display = config?.theme?.extend?.fontFamily?.display;
     expect(display).toBeDefined();
     expect(Array.isArray(display)).toBe(true);
@@ -34,8 +34,8 @@ describe('Font configuration', () => {
   });
 
   it('should include fallback fonts after Nunito', async () => {
-    const mod = await import('../../../tailwind.config.ts');
-    const config = mod.default || mod.config;
+    const mod = (await import('../../../tailwind.config.ts')) as any;
+    const config = mod.default;
     const sans = config?.theme?.extend?.fontFamily?.sans;
     expect(sans!.length).toBeGreaterThanOrEqual(2);
   });

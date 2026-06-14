@@ -19,7 +19,7 @@ function relativeLuminance(hex: string): number {
   const [r, g, b] = [rgb.r / 255, rgb.g / 255, rgb.b / 255].map((c) => {
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
 }
 
 /**
@@ -67,7 +67,8 @@ describe('Deej Potter Theme Registration', () => {
 
   it('should be the last theme in the array (our custom entry)', () => {
     const lastTheme = themes[themes.length - 1];
-    expect(lastTheme.name).toBe('deejpotter');
+    expect(lastTheme).toBeDefined();
+    expect(lastTheme?.name).toBe('deejpotter');
   });
 });
 
